@@ -1,0 +1,44 @@
+---
+- name: Configure Jenkins Server
+  hosts: jenkins
+  become: yes
+  tasks:
+    - name: Install Docker
+      yum:
+        name:
+          - docker
+          - docker-compose
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Install Java 11
+      yum:
+        name: java-11-openjdk
+        state: present
+
+    - name: Install SonarQube Scanner
+      get_url:
+        url: https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+        dest: /tmp/sonar-scanner.zip
+      unarchive:
+        src: /tmp/sonar-scanner.zip
+        dest: /opt
+        remote_src: yes
+
+    - name: Install Nexus CLI tools
+      pip:
+        name:
+          - requests
+          - nexus3-cli
+        state: present
