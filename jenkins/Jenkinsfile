@@ -1,0 +1,108 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = "docker.io"
+        DOCKER_HUB_REPO = "${DOCKER_HUB_USERNAME}/polyglot-sandbox"
+        AWS_REGION = "ap-south-1"
+        NEXUS_URL = "${NEXUS_URL}"
+        SONAR_TOKEN = "${SONAR_TOKEN}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/shreyanshtripathi-01/assignment3_polygot_sandbox.git'
+            }
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                script {
+                    sh '''
+                        sonar-scanner \\
+                            -Dsonar.projectKey=polyglot-sandbox \\
+                            -Dsonar.sources=. \\
+                            -Dsonar.host.url=${SONAR_HOST_URL} \\
+                            -Dsonar.login=${SONAR_TOKEN}
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate Check') {
+            steps {
+                script {
+                    timeout(time: 1, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    def commitSha = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    
+                    sh """
+                        docker-compose -f docker-compose.yml build
+                        
+                        docker tag sandbox-api:latest \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}:\\${commitSha}
+                        docker tag sandbox-python-runner:latest \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}-python:\\${commitSha}
+                        docker tag sandbox-nodejs-runner:latest \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}-nodejs:\\${commitSha}
+                    """
+                }
+            }
+        }
+
+        stage('Push to Nexus') {
+            steps {
+                script {
+                    def commitSha = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    
+                    sh """
+                        docker login -u \\${NEXUS_USER} -p \\${NEXUS_PASSWORD} \\${NEXUS_URL}
+                        docker push \\${NEXUS_URL}/sandbox-api:\\${commitSha}
+                    """
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    def commitSha = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    
+                    sh """
+                        echo "\\${DOCKER_PASSWORD}" | docker login -u "\\${DOCKER_HUB_USERNAME}" --password-stdin
+                        docker push \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}:\\${commitSha}
+                        docker push \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}:latest
+                        docker push \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}-python:\\${commitSha}
+                        docker push \\${DOCKER_REGISTRY}/\\${DOCKER_HUB_REPO}-nodejs:\\${commitSha}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to AWS') {
+            steps {
+                script {
+                    sh """
+                        terraform init
+                        terraform apply -auto-approve
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
