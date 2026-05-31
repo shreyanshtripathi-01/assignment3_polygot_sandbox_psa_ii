@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "Polyglot Sandbox Automator API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Execute Python Code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": {
+          "raw": "http://localhost:3000/execute",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["execute"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"print('Hello from Python!')\",\n  \"language\": \"python\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Execute Node.js Code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": {
+          "raw": "http://localhost:3000/execute",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["execute"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"console.log('Hello from Node.js!')\",\n  \"language\": \"nodejs\"\n}"
+        }
+      }
+    }
+  ]
+]
